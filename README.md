@@ -2,8 +2,8 @@
 
 Make development in branches and create pull requests for additions to main.
 
-Name your development-branch: `dev-username-title` <br>
-where `username` is your username ( dah ... :-) and <br>
+Name your development-branch: `dev-username-title` where <br>
+`username` is your username ( dah ... :-) and <br>
 `title` is a title (micro description) of your change.
 
 **Observe**, that you should not add "production rules" to this repository!
