@@ -8,12 +8,12 @@ git branch development
 
 git checkout development
 
-# do your stuff and testing
+# do your development stuff and your testing
 
 git commit ...
 
 git push --set-upstream origin development
-
-# Create Pull Request:
-# https://github.com/fraxflax/fraxwall/compare/main...development?expand=1
 ```
+
+Create the Pull Request: <br>
+https://github.com/fraxflax/fraxwall/compare/main...development?expand=1
