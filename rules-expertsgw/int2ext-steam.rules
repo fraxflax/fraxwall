@@ -1,0 +1,8 @@
+#$Id: int2ext-steam.rules,v 1.1 2009-06-11 09:59:58 root Exp $
+include = /etc/fraxwall/rules-expertsgw/int2ext-steam.defines
+
+[IEXT]
+
+  # Steam
+  ACCEPT = IINTs	; ALL	; ASTEAMUDP ; append ; steam
+  ACCEPT = IINTs	; ALL	; ASTEAMTCP ; append ; steam

@@ -1,0 +1,13 @@
+# $Id: itlab.rules,v 1.2 2009/03/27 09:36:56 root Exp $
+
+# ACCEPT|[N]REJECT|[N]DROP = \
+#       <in-interface>	; <source-addr>			; <dest-addr>		; <protocol>	; <dest-port>
+
+[IEXT]  
+  NAT = 88.151.47.91 	; NITLAB			; ALL 			; ALL 		; ALL
+  ACCEPT = IITLAB	; NITLAB			; ALL 			; ALL 		; ALL
+
+[IITLAB]
+  ACCEPT= IINTs		; ALL				; NITLAB		; tcp		; ssh,rdp
+  ACCEPT= IINT		; AFRAXWS,AFRAXLAP		; NITLAB		; ALL		; ALL
+  ACCEPT= IVTUN		; AFRAXLAPVPN,NFRAXHINT		; NITLAB		; ALL		; ALL

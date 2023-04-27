@@ -1,0 +1,214 @@
+# $Id: fraxwall.rules,v 1.17 2011-06-23 11:08:01 root Exp $
+#
+# SYNTAX
+# ------
+#
+# include = /path/file
+#
+# includes file just as if where written here
+#
+#
+# iptables = <string>
+#
+# specifys a custom iptables command, everything after '=' is passed as arguments to iptables
+# Only use this parameter if you really know of what you are doing (and is named frax ;-)
+#
+#
+# [DEFINE]
+#   <keyword> = <string>
+#
+# everywhere <keyword> appear as a value (except for NAME, INCLUDE & IPTABLES)
+# it is replaced with the text <string>.
+# <string> may include separators (like ';' & ',') and other defines.
+#
+# OBSERVE that definitions must be defined before they are used.
+#
+#
+# [<out-interface>]
+#   NAME = <string>
+#
+#   ACCEPT =	<in-interface> ; <source-addr> ; <dest-addr> ; <protocol> ; <dest-port> [ ; insert|append [ ; <chain> ] ]
+#   REJECT =	<in-interface> ; <source-addr> ; <dest-addr> ; <protocol> ; <dest-port> [ ; insert|append [ ; <chain> ] ]
+#   DROP =	<in-interface> ; <source-addr> ; <dest-addr> ; <protocol> ; <dest-port> [ ; insert|append [ ; <chain> ] ]
+#
+#   NAT =	<snat-addr>    ; <source-addr> ; <dest-addr> ; <protocol> ; <dest-port> [ ; insert ]
+#
+#
+# Keyword "ALL" can be used for interfaces, addresses, protocols & ports.
+# OBSERVE rules with ALL as <in-interface> is always executed before specific
+# interface <-> interface rules, be carefule when using REJECT and/or DROP
+# with ALL as <in-interface>!
+#
+# You can also specify groups of interfaces, addresses, protocols &
+# ports by specifing a comma-spearated list.
+#
+# Use \<NL> for wrapping lines.  Everything after a '#' on a line is
+# considered a comment. You may comment wrapped lines.
+# Lines with only whitespaces are ignored.
+#
+#
+# NAT sets up snat or masquerading for the specified sources and
+# destination.  Observe that it does NOT automatically setup netfiler
+# (FORWARD) ACCEPT rules to the specified destination(s), so you can safely
+# use ALL for dest-addr, protocol and dest-port, controlling the
+# access with ACCEPT, REJECT and DROP instead.
+# If you specify ALL as <snat-addr> target MASQUERADE will be used
+# instead of SNAT.
+#
+# The special interface '_FW_' means all interfaces on the firewall itself.
+# When used as in-interface it will affect the OUTPUT chain, and when used
+# as out-interface it will affect the INPUT chain.
+# It will NEVER affect the FORWARD chain.
+#
+# ORDER does matter, rules are appended (or inserted specified) in the
+# order they appear. This is exactly how it works:
+# The first time a <out-interface>,<in-interface> rule appears a chain for that
+# interface combination is created. A rule for jumping to the that chain is
+# appended, or inserted in case ALL is <in-interface>, to the
+# appropiate default chain. All rules that have that exact combination of
+# <out-interface>,<in-interface> will then be appended (or inserted if specified)
+# to that chain.
+# If a <chain> is specified the rules are appended (inserted) to
+# <chain> instead. If it is the first time <chain> is used the chain
+# named <chain> is created and jumped to according to the
+# <in-interface>,<out-interface> combination in that rule.
+#
+#
+# [PROXY]
+#   PROXY =	<in-interface> ; <source-addr> ; <dest-addr> ; <protocol> ; <dest-port> ; \
+#		<proxy-addr> ; <proxy-port> [ ; insert ]
+#   DIRECT =	<in-interface> ; <source-addr> ; <dest-addr> ; <protocol> ; <dest-port> [ ; append ]
+#
+# The PROXY parameter setup netfilter rules allowing sources from the
+# in-interface access to the proxy server, and also nat rules for
+# redirecting the traffic (transparent proxy).
+#
+# Observe that this allows the source-addr full access to the proxy
+# server on proxy-port, alowing the source-addr to bypass netfilter
+# security for the protocols the proxy server supports.
+# You will also have to set up the appropiate restrictions in the
+# proxy server's config.
+#
+# If proxy-addr is 127.0.0.1, localhost or ALL, REDIRECT target is
+# used, otherwise DNAT ...  thus, do not specify the address of one of
+# the firewalls interfaces if you have the proxy on the firewall
+# itself, use localhost or ALL instead.
+#
+# The DIRECT parameter overrides the PROXY parameter allowing direct
+# (possibly NAT:ed) access to or from certain hosts if including the
+# same ports as the PROXY parameter.
+# Observe that DIRECT does NOT automatically setup netfiler
+# (FORWARD) ACCEPT rules to the specified destination(s). You will have to
+# do this using ACCEPT parameters for the appropiate interfaces.
+#
+
+[DEFINE]
+  # Interfaces (and local subnets)
+  IEXT  =	eth0
+  IEXTs  =	IEXT
+
+  ITUN =	tun+
+  IVPNIO =	tun0
+  NVPNIO =	10.116.8.0/24
+  IVPNDKS =	tun1
+  NVPNDKS =	10.64.7.144/30
+
+  IINT =	eth1
+  IINTs =	IINT,IVPNIO,IVPNDKS
+  NINT =	10.116.222.0/24
+
+  # Networks / Addresses
+  NLOOP =	127.0.0.0/8
+  NPRIV =	10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
+  NSQEX =	NPRIV
+  NIOI =	172.21.0.0/16, 10.116.0.0/14
+
+  # Services
+  icmp_allow =  icmp ; source-quench, redirect, echo-request, time-exceeded, parameter-problem, destination-unreachable
+  p_ovpn =	tcp,udp ; 7634
+
+  # Give interfaces names (so we don't have to consider order on behalf of that below)
+[IEXT]
+  NAME = ext
+[ITUN]
+  NAME = tun
+[IVPNIO]
+  NAME = vpnio
+[IVPNDKS]
+  NAME = vpndks
+[IINT]
+  NAME = int
+
+
+[ALL]
+  ACCEPT =	ALL		; ALL		; ALL		; icmp_allow			# useful harmless icmp
+  ACCEPT =	_FW_		; ALL		; ALL		; icmp_allow			# -"-
+  ACCEPT =	_FW_		; ALL		; ALL		; udp,tcp	; domain,ntp	# self2dns+ntp
+
+
+[IINT]
+  # Full Access
+  ACCEPT =	IINT		; NINT		; ALL		; ALL		; ALL		# internal
+  ACCEPT =	IVPNIO,IVPNDKS	; NSQEX		; ALL		; ALL		; ALL		# (ioi) Entire SQEX
+
+
+[IVPNIO]
+  ACCEPT =	IINT		; NINT		; ALL		; ALL		; ALL		# int2vpn
+  ACCEPT =	_FW_		; ALL		; 172.21.0.5	; tcp		; ssh		# self2cvs
+  ACCEPT =	_FW_		; ALL		; 172.21.0.4	; tcp		; smtp		# self2mail
+
+[IVPNDKS]
+  ACCEPT =	IINT		; NINT		; ALL		; ALL		; ALL		# int2vpn
+  NAT	 =	10.64.7.146	; NINT		; ALL		; ALL		; ALL		# NAT everything kos on this tun
+
+[IEXT]
+  #ACCEPT =	IINT		; NINT		; ALL		; ALL		; ALL
+  #NAT =	ALL		; NINT 		; ALL 		; ALL		; ALL
+
+  # vpn.external.bigpoint.net (62.146.151.137) + vpn-sfo-pub.bigpoint.net (209.66.90.16)
+  ACCEPT =	IINT		; NINT		; 62.146.151.137,209.66.90.16; tcp		; 1723		# vpn bigpoint
+  ACCEPT =	IINT		; NINT		; 62.146.151.137,209.66.90.16; udp		; 500,4500	# vpn bigpoint
+  ACCEPT =	IINT		; NINT		; 62.146.151.137,209.66.90.16; 47		; ALL		# vpn bigpoint (47=gre)
+  NAT =		ALL		; NINT 		; 62.146.151.137,209.66.90.16; ALL		; ALL
+
+  ACCEPT =	_FW_		; ALL		; ALL		; udp		; bootps	# self dhcp
+  ACCEPT =	_FW_		; ALL		; 88.151.47.90	; p_ovpn		  	# openvpn to ioi
+  ACCEPT =	_FW_		; ALL		; 209.130.141.144 ; tcp		; 1194	  	# openvpn to dks
+  ACCEPT =	_FW_		; ALL		; ALL		; ALL		; ALL		# self2ext
+  REJECT =	_FW_,IINTs	; NLOOP,NPRIV	; ALL		; ALL		; ALL		# reject int2ext
+
+
+[lo]
+  ACCEPT =	_FW_		; ALL		; ALL		; ALL		; ALL		# loopback
+
+
+[_FW_]
+  ACCEPT =	lo		; ALL		; ALL		; ALL		; ALL 		# loopback
+
+  # Silently drop external broadcasts (avoid log bloating)
+  NDROP =	IEXT		; ALL		; 255.255.255.255 ; ALL		; ALL
+
+  # Allow External DHCP server to initiate contact. (Should restrict to DHCP server IP if static)
+  #iptables = --table filter --new-chain ext-FW
+  iptables = --table filter --append INPUT --in-interface eth0 --jump 'ext-FW'
+  iptables = --table filter --append ext-FW --protocol udp --source-port bootps --destination-port bootpc --jump ACCEPT
+  #iptables = --table filter --append ext-FW --protocol udp --source 1.2.3.4 --source-port bootps --destination-port bootpc --jump ACCEPT
+  #DROP   =	IEXTs		; NLOOP,NPRIV	; ALL		; ALL		; ALL		# drop priv from ext
+
+  ACCEPT =	IINTs		; NIOI		; ALL		; tcp		; ssh		# ssh from ioi
+  ACCEPT =	IINTs		; NSQEX		; ALL		; tcp		; ssh		# ssh from ioi
+  ACCEPT =	IINTs		; NSQEX		; ALL		; icmp		; ALL		# all icmp from SQEX
+  ACCEPT =	IINTs		; NSQEX		; ALL		; tcp,udp	; domain,ntp	# dns+ntp from SQEX
+  #ACCEPT =	ALL		; ALL		; ALL		; tcp,udp	; domain
+  ACCEPT =	IINT		; ALL		; ALL		; tcp,udp	; bootps	# dhcp from local
+  ACCEPT =	IINTs		; 172.21.0.4	; ALL		; tcp		; ident
+
+  # Silently reject local broadcasts (avoid log bloating)
+  NREJECT =	IINT		; NSQEX		; 10.116.222.255 ; ALL		; ALL
+
+  # REJECT (instead of DROP) packages from internal networks
+  REJECT =	IINTs		; NSQEX		; ALL		; ALL		; ALL
+
+# Setup VOIP SHAPING
+#shell = sh -c "echo '* Setting Up VoIP Shaping' ; /etc/fraxwall/rules-cph-cgt-fw01/voipshape"
+

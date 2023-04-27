@@ -1,0 +1,126 @@
+# $Id: int2ext.rules,v 1.41 2011-03-04 11:16:45 root Exp $
+
+# ACCEPT|[N]REJECT|[N]DROP = \
+#       <in-interface>	; <source-addr>	; <dest-addr>		; <protocol>	; <dest-port>
+
+[IEXT]
+  # Allow internal access to backup server
+  ACCEPT = IINTs	; ALL		; hp_exabit
+  ACCEPT = IINTs	; ALL		; 91.195.58.120		; ALL		; ALL
+
+  # NAT internal subnets (nic 172.21.0.10 on same address as ns88 itself for DNS,
+  #                       mail 172.21.0.4 on ns88 address for reverse lookups)
+  NAT = 88.151.47.90 	; 172.21.0.10,10.118.5.10,\
+			  172.21.0.4,10.118.5.4	; ALL 		; ALL 		; ALL
+  NAT = 88.151.47.91 	; NINTs,NONLTST,\
+			  10.116.255.18	; ALL 			; ALL 		; ALL
+
+  # Allow mail.ioi.dk acces to all smtp servers
+  ACCEPT = IINT		; 172.21.0.4,10.118.5.4	; ALL		; tcp		; smtp, ssmtp
+
+  # Allow these external services for all 
+  ACCEPT = IINTs	; ALL		; ALL			; tcp,udp	; domain, ntp
+  ACCEPT = IINTs	; ALL		; ALL			; tcp		; http, https, ftp, ftp-data, ssh, ircd, rdp
+
+  # pyzor report (mainly interesting for spam checking)
+  ACCEPT = IINTs	; ALL		; 217.160.253.84	; udp		; pyzor
+
+  # nntp (tcp/119) 
+  # news.telia.dk is an alias for news101.telia.com.
+  # news101.telia.com is an alias for news.dk.telia.net.
+  # news.dk.telia.net has address 194.255.237.197
+  # news.dk.telia.net has address 194.255.237.231
+  # news.dk.telia.net has address 194.255.237.239
+  # news.dk.telia.net has address 194.255.237.193
+  # news.dk.telia.net has address 194.255.237.194
+  # and news.microsoft.com (207.46.248.16)
+  # news.gmane.org is an alias for ger.gmane.org. - ger.gmane.org has address 80.91.229.13
+  # news.sunsite.dk has address 130.225.247.90
+  # news.sslug.dk has address 130.228.2.150
+  ACCEPT = IINTs	; ALL		; \
+					194.255.237.197,\
+					194.255.237.231,\
+					194.255.237.239,\
+					194.255.237.193,\
+					194.255.237.194,\
+					207.46.248.16,\
+					80.91.229.13,\
+					130.225.247.90,\
+					130.228.2.150\
+								; tcp		; nntp
+  # nntps (tcp/563)
+  # xds.xbox.com (65.54.213.157)
+  # ps3news.scedev.net (69.36.128.13)
+  # req. by mortenm - PS2 news group (64.157.7.10)
+  # req. by chrisg  -  news.sdsg.nintendo.com (205.166.76.231)
+  ACCEPT = IINTs	; ALL		; \
+					65.54.213.157,\
+					69.36.128.13, \
+					64.157.7.10, \
+					205.166.76.231 \
+								; tcp		; nntps
+
+  # Test Track Pro
+  ACCEPT = IINTs	; ALL		; \
+					209.130.140.140,\
+					209.130.141.140 \
+								; tcp		; ttp
+
+  # svn.zope.org
+  ACCEPT = IINTs	; ALL		; 63.240.213.173	; tcp		; svn
+
+  # http://public.perforce.com:8080/
+  ACCEPT = IINTs	; ALL		; 67.101.114.84		; tcp		; 8080
+
+  # Allow CPHHAN02.eidos.com access to HanSoft License server
+  # this rule does not make sence (src+dst on same subnet) ... one ip wrong? /frax
+  #ACCEPT = IINT		; 10.118.4.22	; 10.118.4.21		; tcp		; 50129
+
+  # Allow polycom access to Nixxes (Dutch Eidos Partner), req. by madspp
+  ACCEPT = IINT		; 10.118.10.100 ; 213.201.137.74	; ALL		; ALL
+
+  # kl2-live-game.metrics.eidos.co.uk
+  # IP: 67.207.204.55
+  # Ports: tcp/80,  tcp/1015
+  # Comment: 1015 not allowed in eidos fw
+  # 
+  # kl2-live-game.infocast.eidos.co.uk
+  # IP: 67.207.204.55
+  # Ports: tcp/80,  tcp/1016
+  # Comment: 1016 not allowed in eidos fw
+  # 
+  # kl2-live-game.content.eidos.co.uk
+  # IP: (not found)
+  # Ports: tcp/443, tcp/1014
+  # Comment: Does not resolve to an IP address, 
+  #          1014 not allowed in eidos fw for ip 67.207.204.55
+  #
+  # Secure gateway (from fw log, sniffing and debug code):
+  # DST=67.207.204.51 PROTO=UDP SPT=3074 DPT=3074
+  ACCEPT = IINTs	; ALL		; 67.207.204.55		; tcp		; 80,443,1014:1016
+  ACCEPT = IINTs	; ALL		; 67.207.204.51		; udp		; 3074
+
+  # hansoft license server (ls.hansoft.se - 194.16.105.85) tcp/50129
+  ACCEPT = IINT		; ALL		; 194.16.105.85		; tcp		; 50129
+
+  # sftpsftp01.eidos-shanghai.cn (210.22.111.90) - sftp on 22122
+  ACCEPT = IINTs	; ALL		; 210.22.111.90		; tcp		; 22122
+
+  # Danske Bank
+  ACCEPT = IINTs	; ALL		; 212.93.35.19		; tcp		; 1414
+
+
+  # Casual Games Team Router/FW/VPN
+  ACCEPT = IVPNs	; 10.116.222.1, \
+			  10.116.8.18	; ALL			; tcp,udp	; domain,ntp
+
+
+# Include specific requests, console stuff and games
+include = /etc/fraxwall/rules-ns88/int2ext-consoles.rules
+include = /etc/fraxwall/rules-ns88/int2ext-requests.rules
+#include = /etc/fraxwall/rules-ns88/int2ext-steam.rules
+include = /etc/fraxwall/rules-ns88/int2ext-voip.rules
+
+# Reject everything else
+[IEXT]
+  REJECT = IINTs	; ALL		; ALL			; ALL		; ALL

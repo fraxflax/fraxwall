@@ -1,0 +1,14 @@
+# $Id: eproxy.rules,v 1.13 2010-09-02 13:51:18 root Exp $
+
+# ACCEPT = \
+#       <in-interface>  ; <source-addr> ; <dest-addr>           ; <protocol>    ; <dest-port>
+[IEPROXY]
+  ACCEPT = IINTs	; ALL		; ALL			; tcp		; ssh
+  ACCEPT = ALL		; ALL		; ALL			; tcp		; https
+  ACCEPT = ALL		; ALL		; ALL			; tcp,udp	; 3784
+
+[IINTs]
+  ACCEPT = IEPROXY	; ALL		; ALL			; tcp		; https, http
+  ACCEPT = IEPROXY	; ALL		; hp_domain
+  ACCEPT = IEPROXY	; ALL		; hp_authldap
+  ACCEPT = IEPROXY	; ALL		; hp_syscvs                                                                                                  

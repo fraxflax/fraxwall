@@ -1,0 +1,17 @@
+# $Id: extudpb.rules,v 1.4 2011-01-19 09:40:46 root Exp $
+
+# ACCEPT = \
+#       <in-interface>  ; <source-addr> ; <dest-addr>           ; <protocol>    ; <dest-port>
+
+[IEXLSP]
+  ACCEPT = ALL		; ALL		; 88.151.47.154		; udp		; 12345
+  ACCEPT = ALL		; ALL		; ALL 			; icmp		; icmp_allow
+  ACCEPT = IINTs	; ALL		; ALL			; p_rdp
+  ACCEPT = IINTs	; ALL		; ALL			; p_samba
+
+[IEXT]
+  ACCEPT = IEXLSP	; 88.151.47.154	; ALL			; tcp		; 443
+
+[_FW_]
+  ACCEPT = IEXLSP	; 88.151.47.154	; 88.151.47.153		; tcp		; 3128
+  ACCEPT = IEXLSP	; 88.151.47.154	; 88.151.47.153		; tcp,udp	; 53

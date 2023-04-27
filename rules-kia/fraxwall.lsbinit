@@ -1,0 +1,7 @@
+### BEGIN INIT INFO
+# Provides:          fraxwall
+# Required-Start:    udev
+# Default-Start:     S
+# Short-Description: Starts firewall
+# X-Start-Before:    networking
+### END INIT INFO
