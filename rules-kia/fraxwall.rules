@@ -1,0 +1,263 @@
+# $Id: fraxwall.rules,v 1.84 2013-10-18 08:23:14 root Exp $
+#
+# SYNTAX
+# ------
+#
+# include = /path/file 
+#
+# includes file just as if where written here
+#
+#
+# iptables = <string>
+#
+# specifys a custom iptables command, everything after '=' is passed as arguments to iptables
+# Only use this parameter if you really know of what you are doing (and is named frax ;-)
+#
+#
+# [DEFINE]
+#   <keyword> = <string>
+#
+# everywhere <keyword> appear as a value (except for NAME, INCLUDE & IPTABLES)
+# it is replaced with the text <string>.
+# <string> may include separators (like ';' & ',') and other defines.
+#
+# OBSERVE that definitions must be defined before they are used.
+# 
+#
+# [<out-interface>]
+#   NAME = <string>
+#
+#   ACCEPT =	<in-interface> ; <source-addr> ; <dest-addr> ; <protocol> ; <dest-port> [ ; insert|append [ ; <chain> ] ]
+#   REJECT =	<in-interface> ; <source-addr> ; <dest-addr> ; <protocol> ; <dest-port> [ ; insert|append [ ; <chain> ] ]
+#   DROP =	<in-interface> ; <source-addr> ; <dest-addr> ; <protocol> ; <dest-port> [ ; insert|append [ ; <chain> ] ]
+#
+#   NAT =	<snat-addr>    ; <source-addr> ; <dest-addr> ; <protocol> ; <dest-port> [ ; insert ]
+#
+#
+# Keyword "ALL" can be used for interfaces, addresses, protocols & ports. 
+# OBSERVE rules with ALL as <in-interface> is always executed before specific
+# interface <-> interface rules, be carefule when using REJECT and/or DROP 
+# with ALL as <in-interface>!
+# 
+# You can also specify groups of interfaces, addresses, protocols &
+# ports by specifing a comma-spearated list.
+# 
+# Use \<NL> for wrapping lines.  Everything after a '#' on a line is
+# considered a comment. You may comment wrapped lines.
+# Lines with only whitespaces are ignored.
+# 
+#
+# NAT sets up snat or masquerading for the specified sources and
+# destination.  Observe that it does NOT automatically setup netfiler
+# (FORWARD) ACCEPT rules to the specified destination(s), so you can safely
+# use ALL for dest-addr, protocol and dest-port, controlling the
+# access with ACCEPT, REJECT and DROP instead.  
+# If you specify ALL as <snat-addr> target MASQUERADE will be used
+# instead of SNAT.
+#
+# The special interface '_FW_' means all interfaces on the firewall itself.
+# When used as in-interface it will affect the OUTPUT chain, and when used
+# as out-interface it will affect the INPUT chain. 
+# It will NEVER affect the FORWARD chain.
+#
+# ORDER does matter, rules are appended (or inserted specified) in the
+# order they appear. This is exactly how it works:
+# The first time a <out-interface>,<in-interface> rule appears a chain for that
+# interface combination is created. A rule for jumping to the that chain is
+# appended, or inserted in case ALL is <in-interface>, to the
+# appropiate default chain. All rules that have that exact combination of
+# <out-interface>,<in-interface> will then be appended (or inserted if specified)
+# to that chain. 
+# If a <chain> is specified the rules are appended (inserted) to 
+# <chain> instead. If it is the first time <chain> is used the chain
+# named <chain> is created and jumped to according to the
+# <in-interface>,<out-interface> combination in that rule.
+# 
+# 
+# [PROXY]
+#   PROXY =	<in-interface> ; <source-addr> ; <dest-addr> ; <protocol> ; <dest-port> ; \
+#		<proxy-addr> ; <proxy-port> [ ; insert ]
+#   DIRECT =	<in-interface> ; <source-addr> ; <dest-addr> ; <protocol> ; <dest-port> [ ; append ]
+# 
+# The PROXY parameter setup netfilter rules allowing sources from the
+# in-interface access to the proxy server, and also nat rules for
+# redirecting the traffic (transparent proxy).
+# 
+# Observe that this allows the source-addr full access to the proxy
+# server on proxy-port, alowing the source-addr to bypass netfilter
+# security for the protocols the proxy server supports.
+# You will also have to set up the appropiate restrictions in the 
+# proxy server's config.
+# 
+# If proxy-addr is 127.0.0.1, localhost or ALL, REDIRECT target is
+# used, otherwise DNAT ...  thus, do not specify the address of one of
+# the firewalls interfaces if you have the proxy on the firewall
+# itself, use localhost or ALL instead.
+#
+# The DIRECT parameter overrides the PROXY parameter allowing direct
+# (possibly NAT:ed) access to or from certain hosts if including the
+# same ports as the PROXY parameter.
+# Observe that DIRECT does NOT automatically setup netfiler
+# (FORWARD) ACCEPT rules to the specified destination(s). You will have to
+# do this using ACCEPT parameters for the appropiate interfaces.
+# 
+
+[DEFINE]
+  IBB2   =	eth1
+  ICOMHEM =	eth2
+  IEXTs  =	IBB2,ICOMHEM
+
+  ITUN   =	tun+
+  IVPNUG  =	glo0
+  IVPNUC =	cph0
+  IVPNUS =	sou0
+  IVPNU  =	glo0,cph0,sou0
+
+  IINT =	eth0
+  NINT =	10.46.254.0/25
+  ILOCs  =	IINT
+
+  AFRAXU =	10.45.32.97,10.45.32.99,10.45.32.103,10.45.32.107,10.9.1.117
+  IVPNAX =	tun1
+  NVPNAX =	10.46.255.0/28 # 0-15
+  IVPN =	IVPNAX,IVPNU
+  #AUNITYE =	62.116.219.97,185.98.36.1,185.98.36.98,80.80.14.220,80.80.14.217
+  AUNITYE =	80.80.14.220,80.80.14.217
+  AUNITYT =	169.254.9.77
+
+
+  # Networks / Addresses
+  NLOOP =	127.0.0.0/8
+  NPRIV =	10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
+  NUTUN =	169.254.9.76/30
+  #AAXNET =	182.122.211.130,54.246.111.123
+  ADEBIAN= 5.153.231.4,5.153.231.4,5.45.73.24,130.225.254.116,130.239.18.163,130.239.18.163,130.239.18.163,130.239.18.165,130.239.18.165,130.239.18.165,130.239.18.173,130.239.18.173,130.239.18.173,130.89.148.14,130.89.148.14,140.211.15.34,140.211.15.34,195.20.242.89,195.20.242.89,212.211.132.250,212.211.132.250,212.211.132.32,212.211.132.32,108.161.189.196
+  AGMAILSMTP= 173.194.71.108,173.194.71.109
+
+  # Services
+  icmp_allow =  icmp ; source-quench, redirect, echo-request, time-exceeded, parameter-problem, destination-unreachable
+  p_ovpn =	tcp,udp ; 7634
+  squid =	3128
+  p_squid =	tcp ; 3128
+
+  # Give interfaces names (so we don't have to consider order on behalf of that below)
+[IBB2]
+  NAME = bb2
+[ICOMHEM]
+  NAME = comhem
+[ITUN]
+  NAME = tun
+[cph0]
+  NAME = ucph
+[glo0]
+  NAME = uglo
+[sou0]
+  NAME = usou
+[IVPNAX]
+  NAME = vpnax
+[IINT]
+  NAME = int
+
+[ALL]
+  ACCEPT =	ALL		; ALL		; ALL		; icmp_allow			# useful harmless icmp
+  ACCEPT =	_FW_		; ALL		; ALL		; icmp_allow			# -"-
+  ACCEPT =	_FW_		; ALL		; ALL		; tcp,udp	; domain	# allow self dns
+  ACCEPT =	_FW_		; ALL		; ALL		; udp		; ntp		# allow self ntp
+
+# special to manage comhem router on 192.168.100.1 admin - timop123
+[ICOMHEM]
+  ACCEPT =	_FW_		; 192.168.100.2	; 192.168.100.1 ; ALL           ; ALL
+  ACCEPT =	IINT		; NINT		; 192.168.100.1 ; ALL           ; ALL
+  NAT	 =	192.168.100.2   ; NINT		; 192.168.100.1 ; ALL           ; ALL  ; insert
+
+[IEXTs]
+  ACCEPT =	ALL		; ALL		; ADEBIAN	; tcp		; http 
+  REJECT =	_FW_		; NLOOP,NPRIV	; ALL		; ALL		; ALL		 # reject priv2ext
+
+[IINT]
+  ACCEPT = 	_FW_		; ALL		; 10.46.254.101 ; tcp		; 80		 # cam
+  # Full Access
+  ACCEPT =	IINT		; NINT		; ALL		; ALL		; ALL		 # internal
+  ACCEPT =	IVPNAX		; NVPNAX	; ALL		; ALL		; ALL		 # own vpn
+
+[IVPN]
+  ACCEPT =	IINT		; NINT		; ALL		; ALL		; ALL		 # int2vpn
+  ACCEPT =	IVPNAX		; NVPNAX	; ALL		; ALL		; ALL		 # axvpn2vpn
+  ACCEPT =	_FW_		; ALL		; ALL		; ALL		; ALL		 # fw2vpn
+
+[IVPNUG]
+# NAT =		<snat-addr>     ; <source-addr> ; <dest-addr>   ; <protocol>    ; <dest-port> [ ; insert ]
+  NAT =		10.46.254.2	; ALL		; ALL		; ALL		; ALL		 # NAT all traffic to Unity
+  iptables = --table nat --insert ALL-uglo  --source 169.254.9.78 --destination 169.254.9.77 --jump ACCEPT 
+
+[IVPNUC]
+# NAT =		<snat-addr>     ; <source-addr> ; <dest-addr>   ; <protocol>    ; <dest-port> [ ; insert ]
+  NAT =		10.45.46.97	; ALL		; ALL		; ALL		; ALL		 # NAT all traffic to Unity
+  iptables = --table nat --insert ALL-ucph  --source 169.254.9.238 --destination 169.254.9.237 --jump ACCEPT 
+
+[IVPNUS]
+# NAT =		<snat-addr>     ; <source-addr> ; <dest-addr>   ; <protocol>    ; <dest-port> [ ; insert ]
+  NAT =		10.46.254.2	; ALL		; ALL		; ALL		; ALL		 # NAT all traffic to Unity
+  iptables = --table nat --insert ALL-usou --source 169.254.9.209 --destination 169.254.9.210 --jump ACCEPT 
+
+[IEXTs]
+  ACCEPT =	_FW_		; ALL		; ALL		; udp		; bootps	 # self dhcp
+  ACCEPT =	IINT		; NINT		; ALL		; ALL		; ALL		 # int
+  ACCEPT =	IVPNAX		; NVPNAX	; ALL		; ALL		; ALL		 # own vpn
+  # NAT Unity-bound IPSec Traffic
+  #NAT   =	10.46.254.2	; NPRIV		; NPRIV		; ALL		; ALL		 # NAT IPSec traffic to Unity
+  NAT =		ALL		; NPRIV		; ALL		; ALL		; ALL		 # NAT all priv addr to Inet
+  # For now log and accept traffic from self
+  #iptables = --table filter --append FW-bb2 --jump LOG --log-tcp-options --log-ip-options --log-prefix "ACCEPT:" --log-level debug
+  ACCEPT =	_FW_		; ALL		; ALL		; ALL		; ALL		 # self2ext
+
+[lo]
+  ACCEPT =	_FW_		; ALL		; ALL		; ALL		; ALL 		# loopback
+
+[_FW_]
+  ACCEPT =	lo		; ALL		  ; ALL		; ALL		; ALL 		# loopback
+  ACCEPT =	IEXTs		; AUNITYE 	  ; ALL		; udp		; 500,4500	# IPSec IKE from Unity
+  ACCEPT =	IEXTs		; AUNITYE 	  ; ALL		; 50		; ALL		# IPSec ESP from Unity
+  ACCEPT =	IEXTs		; AUNITYE	  ; ALL		; tcp		; 22		# ssh from Unity
+  ACCEPT =	IVPNU		; AUNITYT 	  ; ALL		; icmp		; ALL		# icmp from Unity TUN GW
+  ACCEPT =	IVPNU		; AUNITYT,AFRAXU  ; ALL		; tcp		; 22		# ssh from Unity TUN GW
+  DROP   =	IEXTs		; NLOOP,NPRIV     ; ALL		; ALL		; ALL		# drop priv from ext (obs priv over IPSec)
+  # Allow External DHCP server to initiate contact.
+  iptables = --table filter --insert bb2-FW --protocol udp --source-port bootps --destination-port bootpc --jump ACCEPT
+  iptables = --table filter --insert comhem-FW --protocol udp --source-port bootps --destination-port bootpc --jump ACCEPT
+  ACCEPT =	IEXTs		; 130.211.122.182 ; ALL		; icmp		; ALL		# icmp from ns.axnet.nu 
+  ACCEPT =	IEXTs		; 130.211.122.182 ; ALL		; tcp		; 22,5001	# ssh & iperf from ns.axnet.nu 
+#  ACCEPT =	ALL		; ALL  		  ; ALL		; tcp		; 6996		# sk8cry
+  ACCEPT =	ALL		; ALL  		  ; ALL		; tcp		; 80		# sk8cry
+  ACCEPT =	IINT		; NINT		  ; ALL		; tcp		; ssh		# int ssh
+  ACCEPT =	IVPN		; NPRIV		  ; ALL		; tcp		; ssh		# all vpn ssh 
+  ACCEPT =	IVPNAX		; NVPNAX	  ; ALL		; tcp,udp	; domain	# own vpn dns
+  ACCEPT =	IVPNAX		; NVPNAX	  ; ALL		; udp		; ntp		# own vpn ntp
+  ACCEPT =	IINT		; NINT		  ; ALL		; icmp		; ALL		# int icmp
+  ACCEPT =	IVPNAX		; NPRIV		  ; ALL		; icmp		; ALL		# own vpn icmp
+  ACCEPT =	ALL		; AFRAXU	  ; ALL		; icmp		; ALL		# own laptop on unity icmp
+  ACCEPT =	ALL		; AFRAXU	  ; ALL		; tcp,udp	; domain	# own laptop on unity dns
+  ACCEPT =	ILOCs		; ALL		  ; ALL		; tcp,udp	; domain	# locals dns
+  ACCEPT =	ILOCs		; ALL		  ; ALL		; udp		; bootps,ntp	# locals dhcp+ntp
+  ACCEPT =	ALL		; ALL		  ; ALL		; p_ovpn			# vtun
+
+  # Silently drop other multi- and broadcasts
+  iptables = --table filter --append INPUT --destination 224.0.0.0/4 --jump DROP
+  iptables = --table filter --append INPUT --destination 10.46.254.127 --jump DROP
+  iptables = --table filter --append INPUT --destination 255.255.255.255 --jump DROP
+
+  # REJECT (instead of DROP) packages from internal networks (silently drop multi- and broadcasts before)
+  iptables = --table filter --append int-FW --destination 224.0.0.0/4 --jump DROP	
+  iptables = --table filter --append int-FW --destination 10.46.254.127 --jump DROP	
+  iptables = --table filter --append int-FW --destination 255.255.255.255 --jump DROP	
+  REJECT =	IINT		; ALL		; ALL		; ALL		; ALL
+  REJECT =	IVPNAX		; ALL		; ALL		; ALL		; ALL
+
+[IINT]
+  # my devices @ unity 
+  ACCEPT =	ALL		; AFRAXU	; ALL		; ALL		; ALL
+
+  # get to fraxhue01 from Unity by portforwarding
+  #ACCEPT =	IVPNU		; AFRAXU	; 10.46.254.12	; tcp		; http
+  #iptables = --table nat --insert PREROUTING --in-interface tun0 --destination 10.9.1.53 --protocol tcp --destination-port 80 --jump DNAT --to-destination 10.46.254.12:80
+  #iptables = --table nat --insert POSTROUTING --out-interface eth0 --protocol tcp --source 10.45.0.0/16 --destination 10.46.254.12 --destination-port 80  --jump SNAT --to-source 10.46.254.2

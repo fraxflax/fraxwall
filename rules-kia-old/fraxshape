@@ -1,0 +1,153 @@
+#!/bin/sh
+#
+# FraxShaper
+#
+
+
+#
+# PORTSHAPE=(ifc0 rateup0 prot0 port0 prio0
+#            ifc1 rateup1 prot1 port1 prio1
+#            ...
+#            ifcN rateupN protN portN prioN)
+#
+# IPSHAPE=(ifc0 rateup0 ip0 prio0
+#          ifc1 rateup1 ip1 prio1
+#          ...
+#          ifcN rateupN ipN prioN)
+#
+
+PORTSHAPE= (\
+eth0
+
+
+# Set your outgoing interface and upload rate (in Kbit/s) here
+DEVS="eth0 tun0"
+#tun1 vlan16"
+RATEUP=1024
+
+# Which ports should be prioritized
+VOIPPORTS="sip sip-tls iax" 
+
+# Which servers should be prioritized (may be empty "")
+VOIPIPS="\
+172.21.17.122 \
+62.80.200.53 \
+10.116.254.2 \
+10.116.254.3 \
+10.116.254.5 \
+"
+
+
+# end of configuration options
+
+######################
+# show status and exit
+######################
+
+if [ "$1" = "status" ]
+then
+    for DEV in $DEVS; do
+	echo ""
+	echo "-- $DEV --"
+	echo ""
+
+        echo "[qdisc]"
+        tc -s qdisc show dev $DEV
+
+        echo ""
+        echo "[class]"
+        tc -s class show dev $DEV
+
+        echo ""
+        echo "[filter]"
+        tc -s filter show dev $DEV
+
+        echo ""
+        echo "[iptables]"
+        iptables -t mangle -L SIPSHAPER -v -x 2> /dev/null
+    done
+    exit
+fi
+
+######################
+# default: start it  #
+######################
+
+for DEV in $DEVS; do
+    # Reset everything to a known state (cleared)
+    tc qdisc del dev $DEV root    2> /dev/null > /dev/null
+
+    # Flush and delete tables
+    iptables -t mangle --delete POSTROUTING -o $DEV -j SIPSHAPER 2> /dev/null > /dev/null
+done
+iptables -t mangle --flush        SIPSHAPER 2> /dev/null > /dev/null
+iptables -t mangle --delete-chain SIPSHAPER 2> /dev/null > /dev/null
+
+######################
+# stop it and exit 
+######################
+
+if [ "$1" = "stop" ] 
+then 
+        echo "Shaping removed on ${DEVS}."
+        exit
+fi
+
+######################
+# set up shaping
+######################
+
+# add SIPSHAPER chain to the mangle table in iptables 
+iptables -t mangle --new-chain SIPSHAPER
+
+for DEV in $DEVS; do
+    # add HFSC root qdisc
+    tc qdisc add dev $DEV root handle 1: hfsc default 10
+
+    # add main rate limit class
+    tc class add dev $DEV parent 1: classid 1:1 hfsc sc rate ${RATEUP}kbit ul rate ${RATEUP}kbit
+
+    # keep it simple: two classes only
+    tc class add dev $DEV parent 1:1 classid 1:10 hfsc sc umax 1500b dmax 53ms rate 40kbit ul rate ${RATEUP}kbit
+    tc class add dev $DEV parent 1:1 classid 1:11 hfsc sc umax 1500b dmax 30ms rate 80kbit ul rate ${RATEUP}kbit
+
+    # add SIPSHAPER chain to the mangle table in iptables 
+    iptables -t mangle --insert POSTROUTING -o $DEV -j SIPSHAPER
+
+    # Filter for voip packets
+    tc filter add dev $DEV parent 1: prio 1 protocol ip handle 1 fw flowid 1:11 
+done
+
+# VoIP ports as defined above
+for port in $VOIPPORTS
+do
+        iptables -t mangle -A SIPSHAPER -p udp --sport $port -j MARK --set-mark 1 
+        iptables -t mangle -A SIPSHAPER -p udp --dport $port -j MARK --set-mark 1 
+done
+
+# VoIP IPs as defined above 
+for ip in $VOIPIPS
+do
+        iptables -t mangle -A SIPSHAPER -p udp --src $ip -j MARK --set-mark 1 
+        iptables -t mangle -A SIPSHAPER -p udp --dst $ip -j MARK --set-mark 1 
+done
+
+
+
+echo SipShaper started on $DEVS with ${RATEUP}kbit/s upload rate.
+
+echo -n "Shaping activated for ports: " 
+for port in $VOIPPORTS
+do
+        echo -n " $port"
+done
+echo "."
+
+echo -n "Shaping activated for ip#  : "
+for ip in $VOIPIPS
+do
+        echo -n " $ip"
+done
+echo "."
+
+#end 

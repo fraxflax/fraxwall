@@ -1,0 +1,13 @@
+# $Id: pass-through.rules,v 1.1 2007/04/20 11:04:56 root Exp $
+
+# ACCEPT|[N]REJECT|[N]DROP = \
+#       <in-interface>	; <source-addr>	; <dest-addr>		; <protocol>	; <dest-port>
+
+### PassThrough
+# NAT and allow all outgoing traffic (http - direct, no web proxy)
+[IEXT]  
+  NAT = 88.151.47.91 	; APASS		; ALL 			; ALL 		; ALL
+  ACCEPT = IPASS	; APASS		; ALL			; ALL		; ALL
+
+[IPASS] # only allow answers
+  DROP = IEXT		; ALL		; ALL			; ALL		; ALL

@@ -1,0 +1,125 @@
+# $Id: fraxwall.rules,v 1.2 2009-06-11 10:01:20 root Exp $
+#
+# SYNTAX
+# ------
+#
+# include = /path/file 
+#
+# includes file just as if where written here
+#
+#
+# iptables = <string>
+#
+# specifys a custom iptables command, everything after '=' is passed as arguments to iptables
+# Only use this parameter if you really know of what you are doing (and is named frax ;-)
+#
+#
+# [DEFINE]
+#   <keyword> = <string>
+#
+# everywhere <keyword> appear as a value (except for NAME, INCLUDE & IPTABLES)
+# it is replaced with the text <string>.
+# <string> may include separators (like ';' & ',') and other defines.
+#
+# OBSERVE that definitions must be defined before they are used.
+# 
+#
+# [<out-interface>]
+#   NAME = <string>
+#
+#   ACCEPT =	<in-interface> ; <source-addr> ; <dest-addr> ; <protocol> ; <dest-port> [ ; insert|append [ ; <chain> ] ]
+#   REJECT =	<in-interface> ; <source-addr> ; <dest-addr> ; <protocol> ; <dest-port> [ ; insert|append [ ; <chain> ] ]
+#   DROP =	<in-interface> ; <source-addr> ; <dest-addr> ; <protocol> ; <dest-port> [ ; insert|append [ ; <chain> ] ]
+#
+#   NAT =	<snat-addr>    ; <source-addr> ; <dest-addr> ; <protocol> ; <dest-port> [ ; insert ]
+#
+#
+# Keyword "ALL" can be used for interfaces, addresses, protocols & ports. 
+# OBSERVE rules with ALL as <in-interface> is always executed before specific
+# interface <-> interface rules, be carefule when using REJECT and/or DROP 
+# with ALL as <in-interface>!
+# 
+# You can also specify groups of interfaces, addresses, protocols &
+# ports by specifing a comma-spearated list.
+# 
+# Use \<NL> for wrapping lines.  Everything after a '#' on a line is
+# considered a comment. You may comment wrapped lines.
+# Lines with only whitespaces are ignored.
+# 
+#
+# NAT sets up snat or masquerading for the specified sources and
+# destination.  Observe that it does NOT automatically setup netfiler
+# (FORWARD) ACCEPT rules to the specified destination(s), so you can safely
+# use ALL for dest-addr, protocol and dest-port, controlling the
+# access with ACCEPT, REJECT and DROP instead.  
+# If you specify ALL as <snat-addr> target MASQUERADE will be used
+# instead of SNAT.
+#
+# The special interface '_FW_' means all interfaces on the firewall itself.
+# When used as in-interface it will affect the OUTPUT chain, and when used
+# as out-interface it will affect the INPUT chain. 
+# It will NEVER affect the FORWARD chain.
+#
+# ORDER does matter, rules are appended (or inserted specified) in the
+# order they appear. This is exactly how it works:
+# The first time a <out-interface>,<in-interface> rule appears a chain for that
+# interface combination is created. A rule for jumping to the that chain is
+# appended, or inserted in case ALL is <in-interface>, to the
+# appropiate default chain. All rules that have that exact combination of
+# <out-interface>,<in-interface> will then be appended (or inserted if specified)
+# to that chain. 
+# If a <chain> is specified the rules are appended (inserted) to 
+# <chain> instead. If it is the first time <chain> is used the chain
+# named <chain> is created and jumped to according to the
+# <in-interface>,<out-interface> combination in that rule.
+# 
+# 
+# [PROXY]
+#   PROXY =	<in-interface> ; <source-addr> ; <dest-addr> ; <protocol> ; <dest-port> ; \
+#		<proxy-addr> ; <proxy-port> [ ; insert ]
+#   DIRECT =	<in-interface> ; <source-addr> ; <dest-addr> ; <protocol> ; <dest-port> [ ; append ]
+# 
+# The PROXY parameter setup netfilter rules allowing sources from the
+# in-interface access to the proxy server, and also nat rules for
+# redirecting the traffic (transparent proxy).
+# 
+# Observe that this allows the source-addr full access to the proxy
+# server on proxy-port, alowing the source-addr to bypass netfilter
+# security for the protocols the proxy server supports.
+# You will also have to set up the appropiate restrictions in the 
+# proxy server's config.
+# 
+# If proxy-addr is 127.0.0.1, localhost or ALL, REDIRECT target is
+# used, otherwise DNAT ...  thus, do not specify the address of one of
+# the firewalls interfaces if you have the proxy on the firewall
+# itself, use localhost or ALL instead.
+#
+# The DIRECT parameter overrides the PROXY parameter allowing direct
+# (possibly NAT:ed) access to or from certain hosts if including the
+# same ports as the PROXY parameter.
+# Observe that DIRECT does NOT automatically setup netfiler
+# (FORWARD) ACCEPT rules to the specified destination(s). You will have to
+# do this using ACCEPT parameters for the appropiate interfaces.
+# 
+
+### Read in defines of interfaces, addresses and services
+include = /etc/fraxwall/rules-expertsgw/interfaces.defines
+include = /etc/fraxwall/rules-expertsgw/addresses.defines
+include = /etc/fraxwall/rules-expertsgw/services.defines
+
+### Configure internal interfaces
+[IINTs] 
+  ACCEPT =	IINTs		; ALL		; ALL		; ALL		; ALL # allow int <-> int
+[ALL]
+  ACCEPT =	IINTs		; ALL		; ALL		; icmp		; icmp_allow
+
+### Internal -> External specifics
+include = /etc/fraxwall/rules-expertsgw/int2ext.rules
+
+### Configure access from/to the firewall itself
+include = /etc/fraxwall/rules-expertsgw/firewall.rules
+
+### Allow all subnets to get debian distributions directly from ftp.se.debian.org and security.debian.org via http 
+### and also update clam from db.{dk.,se.,local.,}clamav.net directly
+[IEXT]
+  ACCEPT =	ALL		; ALL		; ADEBIAN,ACLAMDB,APYZOR	; tcp		; http

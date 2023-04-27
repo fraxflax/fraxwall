@@ -1,0 +1,310 @@
+# $Id: fraxwall.rules,v 1.56 2010-04-07 07:22:05 root Exp $
+#
+# SYNTAX
+# ------
+#
+# include = /path/file 
+#
+# includes file just as if where written here
+#
+#
+# iptables = <string>
+#
+# specifys a custom iptables command, everything after '=' is passed as arguments to iptables
+# Only use this parameter if you really know of what you are doing (and is named frax ;-)
+#
+#
+# [DEFINE]
+#   <keyword> = <string>
+#
+# everywhere <keyword> appear as a value (except for NAME, INCLUDE & IPTABLES)
+# it is replaced with the text <string>.
+# <string> may include separators (like ';' & ',') and other defines.
+#
+# OBSERVE that definitions must be defined before they are used.
+# 
+#
+# [<out-interface>]
+#   NAME = <string>
+#
+#   ACCEPT =	<in-interface> ; <source-addr> ; <dest-addr> ; <protocol> ; <dest-port> [ ; insert|append [ ; <chain> ] ]
+#   REJECT =	<in-interface> ; <source-addr> ; <dest-addr> ; <protocol> ; <dest-port> [ ; insert|append [ ; <chain> ] ]
+#   DROP =	<in-interface> ; <source-addr> ; <dest-addr> ; <protocol> ; <dest-port> [ ; insert|append [ ; <chain> ] ]
+#
+#   NAT =	<snat-addr>    ; <source-addr> ; <dest-addr> ; <protocol> ; <dest-port> [ ; insert ]
+#
+#
+# Keyword "ALL" can be used for interfaces, addresses, protocols & ports. 
+# OBSERVE rules with ALL as <in-interface> is always executed before specific
+# interface <-> interface rules, be carefule when using REJECT and/or DROP 
+# with ALL as <in-interface>!
+# 
+# You can also specify groups of interfaces, addresses, protocols &
+# ports by specifing a comma-spearated list.
+# 
+# Use \<NL> for wrapping lines.  Everything after a '#' on a line is
+# considered a comment. You may comment wrapped lines.
+# Lines with only whitespaces are ignored.
+# 
+#
+# NAT sets up snat or masquerading for the specified sources and
+# destination.  Observe that it does NOT automatically setup netfiler
+# (FORWARD) ACCEPT rules to the specified destination(s), so you can safely
+# use ALL for dest-addr, protocol and dest-port, controlling the
+# access with ACCEPT, REJECT and DROP instead.  
+# If you specify ALL as <snat-addr> target MASQUERADE will be used
+# instead of SNAT.
+#
+# The special interface '_FW_' means all interfaces on the firewall itself.
+# When used as in-interface it will affect the OUTPUT chain, and when used
+# as out-interface it will affect the INPUT chain. 
+# It will NEVER affect the FORWARD chain.
+#
+# ORDER does matter, rules are appended (or inserted specified) in the
+# order they appear. This is exactly how it works:
+# The first time a <out-interface>,<in-interface> rule appears a chain for that
+# interface combination is created. A rule for jumping to the that chain is
+# appended, or inserted in case ALL is <in-interface>, to the
+# appropiate default chain. All rules that have that exact combination of
+# <out-interface>,<in-interface> will then be appended (or inserted if specified)
+# to that chain. 
+# If a <chain> is specified the rules are appended (inserted) to 
+# <chain> instead. If it is the first time <chain> is used the chain
+# named <chain> is created and jumped to according to the
+# <in-interface>,<out-interface> combination in that rule.
+# 
+# 
+# [PROXY]
+#   PROXY =	<in-interface> ; <source-addr> ; <dest-addr> ; <protocol> ; <dest-port> ; \
+#		<proxy-addr> ; <proxy-port> [ ; insert ]
+#   DIRECT =	<in-interface> ; <source-addr> ; <dest-addr> ; <protocol> ; <dest-port> [ ; append ]
+# 
+# The PROXY parameter setup netfilter rules allowing sources from the
+# in-interface access to the proxy server, and also nat rules for
+# redirecting the traffic (transparent proxy).
+# 
+# Observe that this allows the source-addr full access to the proxy
+# server on proxy-port, alowing the source-addr to bypass netfilter
+# security for the protocols the proxy server supports.
+# You will also have to set up the appropiate restrictions in the 
+# proxy server's config.
+# 
+# If proxy-addr is 127.0.0.1, localhost or ALL, REDIRECT target is
+# used, otherwise DNAT ...  thus, do not specify the address of one of
+# the firewalls interfaces if you have the proxy on the firewall
+# itself, use localhost or ALL instead.
+#
+# The DIRECT parameter overrides the PROXY parameter allowing direct
+# (possibly NAT:ed) access to or from certain hosts if including the
+# same ports as the PROXY parameter.
+# Observe that DIRECT does NOT automatically setup netfiler
+# (FORWARD) ACCEPT rules to the specified destination(s). You will have to
+# do this using ACCEPT parameters for the appropiate interfaces.
+# 
+
+[DEFINE]
+  IEXT  =	eth2
+  IEPBX  =	eth3
+
+  IEXTs  =	IEXT,IEPBX
+
+  ITUN =	tun+
+
+  IINT =	eth0
+  NINT =	10.116.254.0/26, \	# 0-63
+                10.116.255.16/30        # 16-19, vmware network on lapdog
+
+  IVOIP =	eth1
+  NVOIP =	10.116.255.32/28
+
+  IWLAN =	eth5
+  NWLAN =	10.116.254.64/26	# 64-127
+
+  IGW   =	eth6
+  NGW   =	10.116.255.20/31
+
+  ILOCs  =	IINT,IVOIP,IWLAN,IGW
+
+  # VPN Interfaces
+  IVPNIO =	tun0
+  NVPNIO =	10.116.8.0/24
+  AIOFRAX =	10.118.8.5,10.118.8.6,10.118.8.7,10.118.8.8
+
+  IVPNAX =	tun1
+  NVPNAX =	10.116.255.0/28, \	# 0-15
+		10.116.255.16/30	# 16-19, vmware network on lapdog
+  IVPN =	IVPNAX,IVPNIO
+
+  # Networks / Addresses
+  NLOOP =	127.0.0.0/8
+  NPRIV =	10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
+  NEIDOS =	NPRIV
+  NIO =		172.21.0.0/16, 10.116.0.0/14
+  AEPBX =	83.233.248.50
+		# sip.mysecretary.net has address 62.80.200.53
+		# cx-cust-sth03.rixtelecom.se has address 83.140.41.46
+		# int.sipserver.alltele.se has address 79.138.0.98
+		# sip.phonzo.com has address 83.233.248.50
+  AIOPBX =	10.118.228.10
+  AIPBX = 	10.116.255.34
+  AAXNET =	88.151.47.92
+
+  # Services
+  icmp_allow =  icmp ; source-quench, redirect, echo-request, time-exceeded, parameter-problem, destination-unreachable
+  p_voipsip =	udp ; 5060:5061
+  p_ovpn =	tcp,udp ; 7634
+  squid =	3128
+  p_squid =	tcp ; 3128
+
+  # Give interfaces names (so we don't have to consider order on behalf of that below)
+[IEXT]
+  NAME = ext
+[IEPBX]
+  NAME = epbx
+[ITUN]
+  NAME = tun
+[IVPNAX]
+  NAME = vpnax
+[IVPNIO]
+  NAME = vpnio
+[IINT]
+  NAME = int
+[IVOIP]
+  NAME = voip
+[IWLAN]
+  NAME = wlan
+[IGW]
+  NAME = gw
+
+
+[ALL]
+  ACCEPT =	ALL		; ALL		; ALL		; icmp_allow			# useful harmless icmp
+  ACCEPT =	_FW_		; ALL		; ALL		; icmp_allow			# -"-
+  ACCEPT =	_FW_		; ALL		; ALL		; tcp,udp	; domain,ntp	# allow self dns & ntp
+
+[IEXT]
+  ACCEPT =	_FW_		; 192.168.1.2	; 192.168.1.1	; ALL		; ALL		 # D-Link ADSL Modem
+
+[IEXTs]
+  REJECT =	_FW_		; NLOOP,NPRIV	; ALL		; ALL		; ALL		 # reject priv2ext
+
+[IINT]
+  # Full Access
+  ACCEPT =	IINT		; NINT		; ALL		; ALL		; ALL		 # internal
+  ACCEPT =	IVPNAX		; NVPNAX	; ALL		; ALL		; ALL		 # own vpn
+  ACCEPT =	IVPNIO		; AIOFRAX	; ALL		; ALL		; ALL		 # frax@ioi
+
+  # WPAD (proxy.pac) + Proxy
+  ACCEPT =	IWLAN		; NWLAN		; 10.116.254.19	; tcp		; http,squid	# ... wlan
+
+  # Proxy access only (no WPAD)
+  ACCEPT =	IVOIP		; NVOIP 	; 10.116.254.19	; p_squid			# voip
+  ACCEPT =	_FW_		; ALL		; 10.116.254.19	; p_squid			# self
+  # Only allow gw proxy access when needed for system (debian) updates:
+  # ACCEPT =	IGW		; NGW		; ALL		; p_squid			# gw proxy
+  # Help the guys getting out through a Swedish IP:
+  # ACCEPT =	IVPNIO		; NIO		; ALL		; p_squid			# Entire IO proxy
+
+  # Limited access
+  ACCEPT =	IVPNIO		; NPRIV		; ALL		; tcp		; ssh		 # eidos ssh
+  ACCEPT =	IVPNIO		; NPRIV		; ALL		; tcp,udp	; domain	 # eidos dns
+  ACCEPT =	IGW		; NGW		; ALL		; tcp		; ssh		 # sshjump
+
+[IVPN]
+  ACCEPT =	IINT		; NINT		; ALL		; ALL		; ALL		 # int2vpn
+  ACCEPT =	IVPNAX		; NVPNAX	; ALL		; ALL		; ALL		 # axvpn2vpn
+  ACCEPT =	IVPNIO		; AIOFRAX	; ALL		; ALL		; ALL		 # frax@ioi
+  ACCEPT =	IGW		; NGW		; ALL		; tcp		; ssh		 # sshjump
+
+[IVPNIO]
+  ACCEPT =	_FW_		; ALL		; 172.21.0.5	; tcp		; ssh		# allow self cvs
+
+[IVOIP]
+  ACCEPT =	IINT		; NINT		; ALL		; ALL		; ALL		 # int
+  ACCEPT =	IVPNAX		; NVPNAX	; ALL		; ALL		; ALL		 # own vpn
+  ACCEPT =	IVPNIO		; AIOFRAX	; ALL		; ALL		; ALL		 # io2iows
+  ACCEPT =	IEPBX		; AEPBX		; AIPBX		; p_voipsip			 # ext pbx -> own pbx
+  ACCEPT =	IVPNIO		; AIOPBX	; AIPBX		; p_voipsip			 # io pbx -> own pbx
+  ACCEPT =	IGW		; NGW		; ALL		; tcp		; ssh		 # sshjump
+
+[IEPBX]
+  ACCEPT =	_FW_		; ALL		; ALL		; udp		; bootps	 # self dhcp
+  ACCEPT =	IVOIP		; AIPBX		; ALL		; ALL		; ALL		 # own pbx
+  NAT =		ALL		; NGW		; ALL		; ALL		; ALL		 # NAT sshjump
+  NAT =		ALL		; AIPBX		; ALL		; ALL		; ALL		 # NAT own pbx
+
+# DNAT everything apart from DHCP to Internal PBX (ssh is overidden and redirected to gw below)
+# IEPBX=eth3, AIPBX=10.116.255.34
+  iptables = --table nat --insert PREROUTING --in-interface eth3 --jump DNAT --to-destination 10.116.255.34
+  iptables = --table nat --insert PREROUTING --in-interface eth3 --protocol udp --source-port bootps --destination-port bootpc --jump ACCEPT
+
+[IEXT]
+  ACCEPT =	_FW_		; ALL		; ALL		; udp		; bootps	 # self dhcp
+  ACCEPT =	_FW_		; ALL		; 88.151.47.92	; tcp		; smtp,26	 # self smtp -> axnet
+  ACCEPT =	_FW_		; ALL		; 88.151.47.90	; p_ovpn		  	 # openvpn to ioi
+  ACCEPT =	IINT		; NINT		; ALL		; ALL		; ALL		 # int
+  ACCEPT =	IVPNAX		; NVPNAX	; ALL		; ALL		; ALL		 # own vpn
+  ACCEPT =	IWLAN		; NWLAN		; 88.151.47.92	; ALL		; ALL		 # wlan->axnet
+  NAT =		ALL		; NPRIV		; ALL		; ALL		; ALL		 # NAT all private addr
+  NAT =		ALL		; NGW		; ALL		; ALL		; ALL		 # NAT sshjump
+  NAT =		192.168.1.2	; NPRIV		; 192.168.1.1	; ALL		; ALL		 # ADSL Modem
+  # For now log and accept traffic from self
+  iptables = --table filter --append FW-ext --jump LOG --log-tcp-options --log-ip-options --log-prefix "ACCEPT:" --log-level debug
+  ACCEPT =	_FW_		; ALL		; ALL		; ALL		; ALL		 # self2ext
+
+[IWLAN]
+  ACCEPT =	IINT		; ALL		; ALL		; ALL		; ALL		 # int2wlan
+  ACCEPT =	_FW_		; 192.168.0.49	; 192.168.0.50	; ALL		; ALL		 # D-Link AP
+  NAT =		192.168.0.49	; NPRIV		; 192.168.0.50	; ALL		; ALL		 # D-Link AP
+  ACCEPT =	IGW		; NGW		; ALL		; tcp		; ssh		 # shjump
+
+[IGW]
+  ACCEPT =	ALL		; ALL		; ALL		; tcp		; ssh		# ssh
+
+# All incomming ssh to external addresses is DNAT:ed to gw (sshjump)
+  iptables = --table nat --insert PREROUTING --in-interface eth2 --protocol tcp --destination-port 22 --jump DNAT --to-destination 10.116.255.21:22
+  iptables = --table nat --insert PREROUTING --in-interface eth3 --protocol tcp --destination-port 22 --jump DNAT --to-destination 10.116.255.21:22
+  iptables = --table nat --insert PREROUTING --in-interface eth4 --protocol tcp --destination-port 22 --jump DNAT --to-destination 10.116.255.21:22
+
+
+[lo]
+  ACCEPT =	_FW_		; ALL		; ALL		; ALL		; ALL 		# loopback
+
+[_FW_]
+  ACCEPT =	lo		; ALL		; ALL		; ALL		; ALL 		# loopback
+  DROP   =	IEXTs		; NLOOP,NPRIV	; ALL		; ALL		; ALL		# drop priv from ext
+  # Allow External DHCP server to initiate contact. OBS! Must manually change the IP if it changes.
+  iptables = --table filter --append ext-FW --protocol udp --source 213.114.0.1 --source-port bootps --destination-port bootpc --jump ACCEPT
+  iptables = --table filter --append epbx-FW --protocol udp --source 213.114.0.1 --source-port bootps --destination-port bootpc --jump ACCEPT
+
+  ACCEPT =	IINT		; NINT		; ALL		; tcp		; ssh		# int ssh
+  ACCEPT =	IVPNAX		; NVPNAX	; ALL		; tcp		; ssh		# own vpn ssh 
+  ACCEPT =	IVPNIO		; AIOFRAX	; ALL		; tcp		; ssh		# iows ssh
+
+  ACCEPT =	IINT		; NINT		; ALL		; icmp		; ALL		# icmp
+  ACCEPT =	IVPNAX		; NVPNAX	; ALL		; icmp		; ALL		# ... from all internal
+  ACCEPT =	IVPNIO		; AIOFRAX	; ALL		; icmp		; ALL		#
+
+  ACCEPT =	IVPNIO		; 10.116.8.1	; ALL		; icmp		; ALL		# ioi-tun icmp
+  ACCEPT =	IVPNIO		; NPRIV		; ALL		; tcp,udp	; domain	# eidos dns
+  ACCEPT =	IEXT		; AAXNET	; ALL		; tcp,udp	; domain	# axnet dns master
+  ACCEPT =	ILOCs		; ALL		; ALL		; tcp,udp	; bootps,domain,ntp	# locals dhcp+dns+ntp
+
+
+  ACCEPT =	ALL		; ALL		; ALL		; p_ovpn			# vtun
+
+
+  # REJECT (instead of DROP) packages from internal networks
+  REJECT =	IINT		; NINT		; ALL		; ALL		; ALL
+  REJECT =	IVPNAX		; NVPNAX	; ALL		; ALL		; ALL
+  REJECT =	IVPNIO		; AIOFRAX	; ALL		; ALL		; ALL
+
+# Specials to allow openvpn tunnels from fraxlap on internal subnets
+iptables = --table filter --insert FW-int --destination 10.116.254.21 --protocol udp --source-port 7634 --jump ACCEPT
+iptables = --table filter --insert FW-int --destination 10.116.254.25 --protocol udp --source-port 7634 --jump ACCEPT
+iptables = --table filter --insert FW-wlan --destination 10.116.254.71 --protocol udp --source-port 7634 --jump ACCEPT
+
+
+# Setup VOIP SHAPING
+#shell = sh -c "echo '* Setting Up VoIP Shaping' ; /etc/fraxwall/rules-kia/voipshape"
+

@@ -1,0 +1,51 @@
+
+# ACCEPT = \
+#       <in-interface>  ; <source-addr> ; <dest-addr>           ; <protocol>    ; <dest-port>
+[vlan34]
+  NAME = snap
+  ACCEPT = IINT, IVPN	; ALL		; ALL			; tcp		; ssh
+  ACCEPT = ALL		; ALL		; ALL			; udp		; 500, 4500
+  REJECT = ALL          ; ALL           ; ALL                   ; tcp           ; ident
+
+#[IEXT]
+#  ACCEPT = vlan34       ; ALL           ; ALL                   ; ALL           ; ALL
+
+# DMZCONF is an array, where the cells in DMZCONF[cellno % 11] should define:
+#         0 - chain (a name describing the DMZ)
+#         1 - interface on firewall (same as in DMZS above, one at a time)
+#         2 - incomming_allowed_tcp
+#         3 - incomming_allowed_udp
+#         4 - incomming_allowed_icmp
+#         5 - from_int_allowed_tcp (no need to specify here if specified in 2)
+#         6 - from_int_allowed_udp (no need to specify here if specified in 3)
+#         7 - from_int_allowed_icmp (no need to specify here if specified in 4)
+#         8 - incomming_rejected_tcp
+#         9 - incomming_rejected_udp
+#        10 - to_int_allowed_tcp (keep this as narrow as possible)
+#        11 - to_int_allowed_udp (keep this as narrow as possible)
+#        12 - to_int_allowed_icmp (keep this as narrow as possible)
+#        13 - to_ext_allowed_tcp
+#        14 - to_ext_allowed_udp
+#        15 - to_ext_allowed_icmp
+#        16 - list of nated networks from this interface
+#        17 - proxy / direct / noweb
+
+#  "snap" \
+#  "vlan34" \
+#  "" \
+#  "500 4500" \
+#  "" \
+#  "ssh" \
+#  "" \
+#  "" \
+#  "ident" \
+#  "" \
+#  "" \
+#  "" \
+#  "" \
+#  "ALL" \
+#  "ALL" \
+#  "ALL" \
+#  "" \
+#  "proxy" \
+

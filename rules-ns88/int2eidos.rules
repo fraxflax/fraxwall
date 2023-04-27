@@ -1,0 +1,10 @@
+# $Id: int2eidos.rules,v 1.2 2008/02/03 10:59:29 root Exp $
+
+# ACCEPT|[N]REJECT|[N]DROP = \
+#       <in-interface>	; <source-addr>	; <dest-addr>		; <protocol>	; <dest-port>
+
+[IERT]
+  ACCEPT = IINT		; ALL		; ALL			; ALL		; ALL
+
+[IINT]
+  ACCEPT = IERT		; ALL		; ALL			; ALL		; ALL

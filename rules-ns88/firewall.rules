@@ -1,0 +1,77 @@
+# $Id: firewall.rules,v 1.43 2011-06-27 20:53:34 root Exp $
+# 
+# [<out-interface>]
+#   NAME = <string>
+#
+#   ACCEPT =	<in-interface> ; <source-addr> ; <dest-addr> ; <protocol> ; <dest-port> [ ; insert ]
+#   [N]REJECT =	<in-interface> ; <source-addr> ; <dest-addr> ; <protocol> ; <dest-port> [ ; insert ]
+#   [N]DROP =	<in-interface> ; <source-addr> ; <dest-addr> ; <protocol> ; <dest-port> [ ; insert ]
+#
+#   NAT =	<snat-addr>    ; <source-addr> ; <dest-addr> ; <protocol> ; <dest-port> [ ; insert ]
+#
+#   IPTABLES = specify a custom iptables command, everything after '=' is passed as arguments to iptables
+# 
+# [PROXY]
+#   PROXY =	<in-interface> ; <source-addr> ; <dest-addr> ; <protocol> ; <dest-port> ; \
+#		<proxy-addr> ; <proxy-port> [ ; insert ]
+#   DIRECT =	<in-interface> ; <source-addr> ; <dest-addr> ; <protocol> ; <dest-port> [ ; append ]
+
+### Configure access from/to the firewall
+
+# Explicitly allow all output traffic to loopback
+[lo]
+  ACCEPT = _FW_		; NLOCAL	; ALL		; ALL		; ALL
+
+
+# Outgoing 
+[IEXT] 
+  REJECT = _FW_		; NLOCAL,NPRIV	; ALL		; ALL		; ALL       # No priv addr on ext ifc
+  ACCEPT = _FW_		; ALL		; ADEBIAN	; tcp		; http      # Get debian dist
+
+[IINT]
+  ACCEPT = _FW_		; ALL		; hp_smtp
+  ACCEPT = _FW_		; ALL		; hp_avsquid
+  ACCEPT = _FW_		; ALL		; hp_syscvs
+  ACCEPT = _FW_		; ALL		; hp_domain
+  ACCEPT = IEXT		; 88.151.47.92	; 172.21.0.10	; udp,tcp	; domain
+  ACCEPT = _FW_		; ALL		; hp_ntp
+  ACCEPT = _FW_		; ALL		; hp_authkrb5
+
+  ACCEPT = _FW_		; ALL		; AP4		; tcp		; perforce   # p4 servers
+# NAT    = 10.66.21.1	; 172.21.0.1	; AP4		; tcp		; perforce   # come from special address
+
+[IINTs]
+  ACCEPT = _FW_		; ALL		; ALL		; icmp		; icmp_allow  # ping lose
+  REJECT = _FW_		; ALL		; ALL		; ALL		; ALL
+
+[ALL] # Allow everything else (for now)
+  ACCEPT = _FW_		; ALL		; ALL		; ALL		; ALL
+
+
+# Incomming
+[_FW_]
+  # lo
+  ACCEPT = lo		; NLOCAL	; ALL		; ALL		; ALL # Allow loopback traffic
+
+  # drop private addresses from extrnal-ip subnets
+  DROP   = IEXT,IEDMZs	; NLOCAL,NPRIV	; ALL		; ALL		; ALL # No private addrs from ext
+
+  # since proxy is inserted we need to get the restriction first using 'insert',
+  REJECT = IRESTRICT	; NRESTRICT	; ALL		; ALL		; ALL 		; insert
+
+  # external
+  ACCEPT = IEXT		; 88.151.47.92	; ALL		; tcp		; 22  # Emergency entry
+  REJECT = IEXT		; 88.151.47.92	; ALL		; ALL		; ALL # Ext. scanning from pet.ioi.dk
+
+  # ALL interfaces
+  ACCEPT = ALL		; ALL		; ALL		; icmp		; icmp_allow
+  ACCEPT = ALL		; ALL		; ALL		; tcp,udp	; domain, ntp, vtun
+  ACCEPT = ALL		; ALL		; ALL		; tcp		; smtp, https, pptp
+  ACCEPT = ALL		; ALL		; 88.151.47.93	; tcp		; p4tun # ssh for p4 tunneling
+  REJECT = ALL		; ALL		; ALL		; tcp		; ident
+
+
+  # internal
+  ACCEPT = IINTs	; ALL		; ALL		; tcp		; ssh, http, ipac-stat, mysql
+ NREJECT = IINTs	; ALL		; ALL		; ALL		; ALL
+

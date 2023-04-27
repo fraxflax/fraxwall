@@ -1,0 +1,33 @@
+# $Id: int2ext-consoles.rules,v 1.15 2010-07-02 06:51:38 root Exp $
+include = /etc/fraxwall/rules-ns88/int2ext-consoles.defines
+
+[IEXT]
+  # MSERV is the online test gateway, filtering of PS[23]s och XBOXs is done on it
+  ACCEPT = IINT	; 	MSERV			; ALL		; ALL		; ALL			; append ; consoles
+
+  # Allow the following MAC-addresses (PS[23]s & XBOXs) full external access,
+  ACCEPT = IINT		; MPS23,MXBOX		; ALL		; ALL		; ALL			; append ; consoles
+
+  # xbox / windows live
+  ACCEPT = IINTs	; ALL			; AXBOXLIVE	; udp		; 88, 1000, 3074, 60200, 3090
+  ACCEPT = IINTs	; ALL			; AXBOXLIVE	; tcp		; 80, 88, 443, 1000, 3074
+
+  # xbox / windows live - XLSP
+  # req. by. villadse (+ carstens,thomasha)
+  ACCEPT = IINTs	; ALL			; 67.207.204.55	; tcp		; 20480
+
+  # Allow all traffic to the eidos online server (sbukps2.quazal.net)
+  ACCEPT = IINTs	; 206.162.152.52	; ALL		; ALL		; ALL
+
+  # sebastianl home xbox bridged over vpn-card
+  ACCEPT = IVPNs	; 10.116.10.206		; ALL		; ALL		; ALL
+
+[PROXY]
+  DIRECT = IINTs	; ALL			; AXBOXLIVE	; tcp		; http
+  DIRECT = IINTs	; MPS23,MXBOX,MSERV	; ALL		; tcp		; http
+  # sebastianl home xbox bridged over vpn-card
+  DIRECT = IVPNs	; 10.116.10.206		; ALL		; tcp		; http
+
+# Special for ps3 test on restricted network
+#iptables = --table filter --insert consoles --match mac --mac-source 00:19:c5:44:a5:d8 --jump RETURN
+

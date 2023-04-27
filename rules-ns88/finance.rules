@@ -1,0 +1,58 @@
+# $Id: finance.rules,v 1.14 2009-12-02 14:13:52 root Exp $
+
+# ACCEPT = \
+#       <in-interface>  ; <source-addr> ; <dest-addr>   ; <protocol>    ; <dest-port>
+[IEPOS]
+  # Enable next two lines to allow rdp to epos (for PBJ)
+  ACCEPT = IEXT		; ALL		; ALL		; tcp		; rdp # external remote desktop
+  iptables = --table nat --insert PREROUTING --destination 88.151.47.93 --protocol tcp --destination-port 3389 --jump DNAT --to-destination 217.10.24.98:3389
+  iptables = --table nat --insert PREROUTING --destination 10.116.13.2 --jump DNAT --to-destination 217.10.24.98
+  ACCEPT = IINTs,IMAC,IBF \
+			; ALL		; ALL		; ALL		; ALL
+
+[IMAC]
+  ACCEPT = IPPTP	; AMACON	; ALL		; ALL		; ALL  # allow future link vpn
+  REJECT = IRESTRICT	; NRESTRICT	; ALL		; ALL		; ALL  # reject vpn from externals
+  iptables = --table nat --insert PREROUTING --destination 10.116.13.10 --jump DNAT --to-destination 217.10.24.101
+  # Enable next two lines to allow ssh to maconomy
+  #ACCEPT = IEXT		; ALL		; ALL		; tcp		; 22 # external ssh
+  #iptables = --table nat --insert PREROUTING --destination 88.151.47.93 --protocol tcp --destination-port 2222 --jump DNAT --to-destination 217.10.24.101:22
+  ACCEPT = IINTs,IBF,IEPOS \
+			; ALL		; ALL		; ALL		; ALL
+
+[IBF]
+  ACCEPT = IPPTP	; AFLINK	; ALL		; ALL		; ALL  # allow future link vpn
+  REJECT = IRESTRICT	; NRESTRICT	; ALL		; ALL		; ALL  # reject vpn from externals
+  iptables = --table nat --insert PREROUTING --destination 10.116.13.6 --jump DNAT --to-destination 10.13.0.6
+  ACCEPT = IINTs,IMAC,IEPOS \
+			; ALL		; ALL		; ALL		; ALL  # full access from int
+  ACCEPT = IEPROXY	; ALL		; ALL		; tcp		; http # web access from extraweb
+
+[IINT]
+  ACCEPT = IEPOS	; ALL		; 10.118.3.50	; tcp		; 9100	# floor4dup
+  ACCEPT = IEPOS	; ALL		; 10.118.4.10,\				# CPHDMC01
+					  10.118.4.11	; ALL		; ALL	# CPHDMC02
+#  ACCEPT = IEPOS	; ALL		; 10.118.5.25	; ALL		; ALL	# ioishare
+  ACCEPT = IEPOS	; ALL		; 10.118.4.23	; ALL		; ALL	# cphmon01
+  ACCEPT = IEPOS	; ALL		; 10.118.2.0/24	; ALL		; ALL	# mgmtvlan (esx)
+  REJECT = IMAC		; ALL		; ALL		; ALL		; ALL
+  ACCEPT = IBF		; ALL		; hp_domain
+  ACCEPT = IBF		; ALL		; hp_smtp
+
+
+[ISMTP]
+  ACCEPT = IEPOS,IMAC	; ALL		; ALL		; tcp		; smtp # send mails via smtp.ioi.dk
+
+[IEXT]
+  ACCEPT = IEPOS	; ALL		; ALL		; tcp		; http, https
+  NAT =	   88.151.47.93 ; 217.10.24.98  ; ALL		; tcp		; http, https
+  ACCEPT = IMAC		; ALL		; ALL		; ALL		; ALL
+
+[PROXY]
+  DIRECT = IEPOS	; ALL		; ALL		; tcp		; http
+
+# Reject all other traffic from these systems
+[ALL]
+  REJECT = IMAC		; ALL		; ALL		; ALL		; ALL
+  REJECT = IEPOS	; ALL		; ALL		; ALL		; ALL
+  REJECT = IBF		; ALL		; ALL		; ALL		; ALL

@@ -1,0 +1,23 @@
+# $Id: smtp.rules,v 1.7 2011-02-23 11:04:06 root Exp $
+
+# ACCEPT = \
+#       <in-interface>  ; <source-addr> ; <dest-addr>           ; <protocol>    ; <dest-port>
+
+[ISMTP]
+# ACCEPT = ALL		; ALL		; 88.151.47.131		; tcp		; smtp, http, https, imaps
+  ACCEPT = ALL		; ALL		; 88.151.47.131		; tcp		; http, https, imaps
+  ACCEPT = ALL          ; NIOIEXT       ; 88.151.47.131         ; tcp           ; smtp
+  ACCEPT = IINTs        ; NPRIV		; 88.151.47.131         ; tcp           ; smtp
+  ACCEPT = ALL		; ALL		; ALL 			; icmp		; icmp_allow
+  ACCEPT = IINTs	; ALL		; ALL			; tcp		; ssh, mysql
+
+[IINT]
+  ACCEPT = ISMTP	; ALL		; hp_imaps
+  ACCEPT = ISMTP	; ALL		; hp_smtp
+  ACCEPT = ISMTP	; ALL		; hp_authkrb5
+  ACCEPT = ISMTP	; ALL		; hp_authldap
+  ACCEPT = ISMTP	; ALL		; hp_syscvs
+  ACCEPT = IEXT		; 88.151.47.92	; hp_smtp
+
+[IEXT]
+  ACCEPT = ISMTP	; 88.151.47.131 ; ALL			; tcp		; http
