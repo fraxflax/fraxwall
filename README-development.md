@@ -4,11 +4,19 @@ Make development in the deevelopment branch and create pull requests to merge ch
 **Observe**, that this branch should not have any rules, apart from the _rules-examples/_.
 
 ```shell
+
 git branch development
+
 git checkout development
+
 # do your stuff and testing
+
 git commit ...
+
 git push --set-upstream origin development
-# add info on pull request here
+
+# Create Pull Request:
+# https://github.com/fraxflax/fraxwall/compare/main...development?expand=1
+
 # add infor on merging here
 ```
