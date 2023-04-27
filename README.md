@@ -3,12 +3,10 @@
 Make development in branches and create pull requests for additions to main.
 
 Name your development-branch: `dev-username-title` <br>
-where usernam,e is your username :-) and <br>
-title is a title (micro description) of your change.
+where `username` is your username ( dah ... :-) and <br>
+`title` is a title (micro description) of your change.
 
-**Observe**, that you should not create pull requests for "rules" 
-apart from changes in the rules-examples folder.
-
+**Observe**, that you should not add "production rules" to this repository!
 
 ```shell
 git branch dev-username-title
@@ -27,5 +25,5 @@ git commit [ --dry-run ] --all --message='good description of your changes'
 git push --set-upstream origin dev-username-title
 ```
 
-Create the Pull Request:
+Create the Pull Request: <br>
 https://github.com/fraxflax/fraxwall/compare/main...dev-username-title?expand=1
