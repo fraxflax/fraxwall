@@ -94,6 +94,10 @@ if(-f $configfile) {
 } else {
     &prompt_cont("\nWARNING!!!\nUsing Default Configuration!\n");
 }
+##fraxtmp:
+#$config{'TMP_DIR'}= '/tmp/fraxwall';
+#$config{'BACKUP_DIR'}= '/tmp/fraxwall/backup';
+    
 
 # Check configuration
 
@@ -274,6 +278,24 @@ print SPOOL<<EOS1;
 # Short-Description: Starts firewall
 # X-Start-Before:    networking
 ### END INIT INFO
+
+### /etc/systemd/system/fraxwall.service
+# [Unit]
+# Description=fraxwall 
+# After=udev.service
+# Before=network.target
+# 
+# [Service]
+# ExecStart=/etc/init.d/fraxwall start
+# 
+# [Install]
+# WantedBy=sysinit.target
+###
+# systemctl daemon-reload
+# systemctl enable fraxwall.service
+# systemctl start fraxwall.service
+###
+
 if [[ "\$2" = "debug" ]]; then
   ipt () { echo $config{'IPTABLES'} "\$*" ; }
   shell () { echo "\$*" ; }
@@ -357,6 +379,8 @@ for my $r (@rules) {
 	    $chains{$r->{'t'}}{$chain}= {};
 	}
 	unless(exists $chains{$r->{'t'}}{$chain}{"$r->{'i'}-$r->{'o'}"}) {
+#	    print SPOOL ("ipt --table $r->{'t'} --append ", 
+#			 #always append, even for iifc ALL # $r->{'i'} eq 'ALL' ? 'insert ' : 'append ', 
 	    print SPOOL ("ipt --table $r->{'t'} --", 
 			 $r->{'i'} eq 'ALL' ? 'insert ' : 'append ', 
                          $r->{'t'} eq 'filter'
@@ -367,6 +391,9 @@ for my $r (@rules) {
                          $r->{'o'} =~ m/^(_FW_|ALL|PROXY)$/ ? '' 
                          : $r->{'o'} =~ m/^phy=(.*)/ ? " --match physdev --physdev-out $1" : " --out-interface $r->{'o'}",
                          " --jump '$chain'\n");
+#	    print SPOOL ("ipt --table filter --append INPUT --jump 'ALL-ALL'\n",
+#			 "ipt --table filter --append OUTPUT --jump 'ALL-ALL'\n")
+#		if $chain eq 'ALL-ALL' && $r->{'t'} eq 'filter';
             $chains{$r->{'t'}}{$chain}{"$r->{'i'}-$r->{'o'}"}= 1;
 	}
     }
