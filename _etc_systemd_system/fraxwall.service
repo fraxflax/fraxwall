@@ -1,0 +1,11 @@
+[Unit]
+Description=fraxwall 
+After=udev.service
+Before=network.target
+
+[Service]
+ExecStart=/etc/init.d/fraxwall start
+ExecReload=/etc/init.d/fraxwall restart
+
+[Install]
+WantedBy=sysinit.target
